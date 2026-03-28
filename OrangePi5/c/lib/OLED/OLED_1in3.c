@@ -91,8 +91,9 @@ static void OLED_InitReg(void)
 
     OLED_WriteReg(0x40);//--set start line address  Set Mapping RAM Display Start Line (0x00~0x3F)
     OLED_WriteReg(0x81);//--set contrast control register
-    OLED_WriteReg(0xA0);//--Set SEG/Column Mapping a0/a1
-    OLED_WriteReg(0xC0);//Set COM/Row Scan Direction
+    OLED_WriteReg(0xCF);//--contrast value
+    OLED_WriteReg(0xA1);//--Set SEG/Column Mapping: a0=normal, a1=flip horizontal
+    OLED_WriteReg(0xC8);//Set COM/Row Scan Direction: C0=normal, C8=flip vertical
     OLED_WriteReg(0xA6);//--set normal display a6/a7
     OLED_WriteReg(0xA8);//--set multiplex ratio(1 to 64)
     OLED_WriteReg(0x3F);//--1/64 duty

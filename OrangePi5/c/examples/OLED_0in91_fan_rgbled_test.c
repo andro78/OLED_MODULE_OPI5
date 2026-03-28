@@ -86,7 +86,7 @@ void setRGBColor(int color)
     }
 }
 
-int OLED_0in91_test(void)
+int OLED_0in91_fan_rgbled_test(void)
 {
 	time_t mytime;
 	struct tm *tm;
