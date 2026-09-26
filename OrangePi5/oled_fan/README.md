@@ -12,6 +12,11 @@ Orange Pi 5용 0.96인치 I2C OLED(SSD1306) 상태 표시 + PWM 팬 제어
 
 두 팬 중 찾은 것을 모두 같은 값으로 제어합니다. HAT 팬은 PWM 값을 가장 가까운 10% 단계로 변환해 씁니다.
 
+테스트 환경: Orange Pi 5 Max (RK3588) / Ubuntu 22.04 (Orange Pi 1.0.2 Jammy) / 커널 6.1.99-rockchip-rk3588 /
+52Pi EP-0152 HAT (0.91" OLED + 팬 MCU `0x0D`)
+
+> 현재 OLED 드라이버는 0.96" 128x64(`OLED_0in96`) 기준입니다. EP-0152의 0.91" 128x32 OLED에서는 화면 일부만 보일 수 있습니다.
+
 ## 화면
 ```
 09/24 19:57:36

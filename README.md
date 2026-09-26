@@ -4,6 +4,34 @@ Orange Pi 5 / 5B / 5Plus 용 OLED 모듈 C 소스코드
 
 ---
 
+## 테스트 환경
+
+| 항목 | 내용 |
+|------|------|
+| 보드 | Orange Pi 5 Max (RK3588, 8GB) |
+| OS | Orange Pi 1.0.2 Jammy (Ubuntu 22.04.5 LTS) |
+| 커널 | 6.1.99-rockchip-rk3588 |
+| Overlay (`/boot/orangepiEnv.txt`) | `overlays=i2c2-m0 pwm0-m0 pwm1-m0 pwm3-m3` |
+| HAT | [52Pi EP-0152](https://wiki.52pi.com/index.php/EP-0152) Cooling Fan Expansion Board Plus 0.91" OLED V1.0 |
+
+### EP-0152 HAT 구성 (Orange Pi 5 Max 기준)
+
+| 기능 | 연결 | 비고 |
+|------|------|------|
+| OLED 0.91" (128x32, SSD1306) | I2C `/dev/i2c-2`, 주소 `0x3C` (Pin 3 SDA / Pin 5 SCL) | |
+| 팬 + RGB LED MCU | I2C `/dev/i2c-2`, 주소 `0x0D` | 팬: 레지스터 `0x08` (0x00 끔, 0x01 100%, 0x02~0x09 = 20~90%) |
+| LED1~4 | Pin 35 / 33 / 31 / 29 (wPi 23 / 22 / 20 / 19) | Active-high |
+
+I2C 스캔 결과 (`sudo i2cdetect -y 2`): `0x0d`, `0x3c`
+
+> **주의:** 52Pi 위키에는 팬이 GPIO14(Pin 8)로 제어된다고 되어 있지만, 이 보드에서는 팬이 I2C `0x0D` MCU로만 동작합니다.
+> Orange Pi 5 Max의 Pin 8은 UART2 TXD(디버그 콘솔 `ttyS2`)이므로 GPIO로 사용하지 마세요.
+> 보드 자체 팬 커넥터(`pwm-fan`)를 제어해도 HAT 팬은 돌지 않습니다.
+
+GPIO 핀 정보는 `gpio readall`로 확인할 수 있습니다.
+
+---
+
 ## 하드웨어 연결 (IIC)
 
 | OLED | Orange Pi 5 |
