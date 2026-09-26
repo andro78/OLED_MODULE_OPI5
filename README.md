@@ -115,3 +115,10 @@ make
 ```
 
 ![image](https://github.com/sagpaycokr/OLED_MODULE_OPI5/assets/70673576/4c550e7d-f450-4f38-a049-517b6a0c1533)
+
+---
+
+## oled_fan (상태 표시 + 팬 제어 서비스)
+
+OLED에 시간/IP/CPU/메모리/온도를 표시하고 온도에 따라 팬을 제어하는 systemd 서비스입니다.
+HAT 팬 MCU(I2C `0x0D`)와 보드 `pwm-fan`을 모두 지원합니다. 자세한 내용은 [`OrangePi5/oled_fan`](OrangePi5/oled_fan/README.md) 참고.

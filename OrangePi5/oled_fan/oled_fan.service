@@ -1,0 +1,12 @@
+[Unit]
+Description=0.96inch OLED status display and PWM fan control
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/oled_fan
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
