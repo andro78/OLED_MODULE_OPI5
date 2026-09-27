@@ -1,0 +1,53 @@
+#!/bin/sh
+# fanctl - manual control for the oled_fan service
+#   fanctl [status]        show temperature, fan speed and mode
+#   fanctl auto            follow the temperature curve
+#   fanctl full | off      fixed 100% / 0%
+#   fanctl <0-100>         fixed speed in percent (HAT fan uses 10% steps, min 20%)
+
+RUN_DIR=/run/oled_fan
+OVERRIDE=$RUN_DIR/override
+STATE=$RUN_DIR/state
+
+usage() {
+    sed -n '2,6s/^# \{0,1\}//p' "$0"
+    exit 1
+}
+
+status() {
+    if [ ! -r "$STATE" ]; then
+        echo "oled_fan is not running (no $STATE)"
+        exit 1
+    fi
+    read -r temp pwm mode < "$STATE"
+    echo "temp ${temp}C  fan $((pwm * 100 / 255))% (pwm $pwm)  mode $mode"
+}
+
+set_override() {
+    mkdir -p "$RUN_DIR"
+    echo "$1" > "$OVERRIDE.tmp" && mv "$OVERRIDE.tmp" "$OVERRIDE"
+}
+
+if [ "${1:-status}" != status ] && [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+case "${1:-status}" in
+    status)
+        status ;;
+    auto)
+        set_override auto
+        echo "fan: auto" ;;
+    full|max)
+        set_override 255
+        echo "fan: 100%" ;;
+    off)
+        set_override 0
+        echo "fan: off" ;;
+    *[!0-9]*|'')
+        usage ;;
+    *)
+        [ "$1" -le 100 ] || usage
+        set_override $(( ($1 * 255 + 50) / 100 ))
+        echo "fan: $1%" ;;
+esac

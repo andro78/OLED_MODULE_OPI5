@@ -1,0 +1,107 @@
+#!/bin/sh
+# rgbctl - RGB LED control for the HAT MCU (I2C 0x0D on /dev/i2c-2)
+#   rgbctl off                              turn the LEDs off
+#   rgbctl effect <name> [slow|normal|fast] water, breathing, marquee, rainbow, colorful
+#   rgbctl color <name>                     color for water/breathing: red, green, blue,
+#                                           yellow, purple, cyan, white
+#   rgbctl rgb <R> <G> <B> [led]            fixed color 0-255, led = all (default) or index
+#   rgbctl restore                          re-apply the last saved setting
+#   rgbctl show                             print the saved setting
+
+BUS=2
+ADDR=0x0d
+SAVE=/etc/oled_fan/rgb
+
+usage() {
+    sed -n '2,9s/^# \{0,1\}//p' "$0"
+    exit 1
+}
+
+reg() {
+    i2cset -y $BUS $ADDR "$1" "$2" || exit 1
+}
+
+byte() {
+    case "$1" in
+        ''|*[!0-9]*) usage ;;
+    esac
+    [ "$1" -le 255 ] || usage
+}
+
+save() {
+    mkdir -p "$(dirname "$SAVE")"
+    echo "$*" > "$SAVE"
+}
+
+apply() {
+    case "$1" in
+        off)
+            reg 0x07 0x00 ;;
+        effect)
+            case "$2" in
+                water)     e=0 ;;
+                breathing) e=1 ;;
+                marquee)   e=2 ;;
+                rainbow)   e=3 ;;
+                colorful)  e=4 ;;
+                *) usage ;;
+            esac
+            case "${3:-normal}" in
+                slow)   s=1 ;;
+                normal) s=2 ;;
+                fast)   s=3 ;;
+                *) usage ;;
+            esac
+            reg 0x04 $e
+            reg 0x05 $s ;;
+        color)
+            case "$2" in
+                red) c=0 ;; green) c=1 ;; blue) c=2 ;; yellow) c=3 ;;
+                purple) c=4 ;; cyan) c=5 ;; white) c=6 ;;
+                *) usage ;;
+            esac
+            reg 0x06 $c ;;
+        rgb)
+            byte "$2"; byte "$3"; byte "$4"
+            led=${5:-all}
+            [ "$led" = all ] && led=255 || byte "$led"
+            reg 0x00 "$led"
+            reg 0x01 "$2"
+            reg 0x02 "$3"
+            reg 0x03 "$4" ;;
+        *)
+            usage ;;
+    esac
+}
+
+case "$1" in
+    show)
+        cat "$SAVE" 2>/dev/null || echo "no saved setting"
+        exit 0 ;;
+    ''|-h|--help)
+        usage ;;
+esac
+
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+case "$1" in
+    restore)
+        [ -r "$SAVE" ] || exit 0
+        while read -r line; do
+            # shellcheck disable=SC2086
+            apply $line
+        done < "$SAVE" ;;
+    color)
+        # the color belongs to the current water/breathing effect, keep it with it
+        apply "$@"
+        prev=$(head -n 1 "$SAVE" 2>/dev/null)
+        case "$prev" in
+            effect*) save "$prev" && echo "$*" >> "$SAVE" ;;
+            *) save "$@" ;;
+        esac ;;
+    *)
+        apply "$@"
+        save "$@" ;;
+esac

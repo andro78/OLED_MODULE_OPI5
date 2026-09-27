@@ -30,6 +30,7 @@
 ******************************************************************************/
 #include "OLED_0in96.h"
 #include "stdio.h"
+#include <time.h>
 
 #define vccstate SSD1306_SWITCHCAPVCC
 
@@ -149,21 +150,33 @@ function:
 void OLED_0in96_display(UBYTE *Image)
 {
     UWORD j, i, temp;
-	OLED_WriteReg(SSD1306_COLUMNADDR);
-	OLED_WriteReg(0);         //cloumn start address
-	OLED_WriteReg(OLED_0in96_HEIGHT -1); //cloumn end address
-	OLED_WriteReg(SSD1306_PAGEADDR);
-	OLED_WriteReg(0);         //page atart address
-	OLED_WriteReg(OLED_0in96_WIDTH/8 -1); //page end address
-    
-    // Send one 128-byte page per I2C transaction instead of byte by byte
+    static time_t last_report = 0;
+    int errors = 0;
+
+    // Send one 128-byte page per I2C transaction instead of byte by byte.
+    // Each page gets its own address window, so a failed transfer (the bus is
+    // shared with the HAT MCU) can't shift the rest of the frame into lower rows.
     UBYTE page[128];
     for (j = 0; j < 8; j++) {
         for(i = 0; i < 128; i++) {
             temp = Image[7-j + i*8];
             page[i] = temp;
         }
-        I2C_Write_nByte(IIC_RAM, page, 128);
+        for (i = 0; i < 2; i++) {   // one retry
+            OLED_WriteReg(SSD1306_COLUMNADDR);
+            OLED_WriteReg(0);
+            OLED_WriteReg(OLED_0in96_HEIGHT - 1);
+            OLED_WriteReg(SSD1306_PAGEADDR);
+            OLED_WriteReg(j);
+            OLED_WriteReg(j);
+            if (I2C_Write_nByte(IIC_RAM, page, 128) == 0)
+                break;
+            errors++;
+        }
+    }
+    if (errors && time(NULL) - last_report >= 60) {
+        fprintf(stderr, "OLED: %d I2C page write error(s)\n", errors);
+        last_report = time(NULL);
     }
 }
 

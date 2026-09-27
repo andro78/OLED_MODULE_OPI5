@@ -18,8 +18,8 @@ Orange Pi 5 / 5B / 5Plus 용 OLED 모듈 C 소스코드
 
 | 기능 | 연결 | 비고 |
 |------|------|------|
-| OLED 0.91" (128x32, SSD1306) | I2C `/dev/i2c-2`, 주소 `0x3C` (Pin 3 SDA / Pin 5 SCL) | |
-| 팬 + RGB LED MCU | I2C `/dev/i2c-2`, 주소 `0x0D` | 팬: 레지스터 `0x08` (0x00 끔, 0x01 100%, 0x02~0x09 = 20~90%) |
+| OLED 0.96" (128x64, SSD1306) | I2C `/dev/i2c-2`, 주소 `0x3C` (Pin 3 SDA / Pin 5 SCL) | HAT 기본 0.91" 대신 0.96" 모듈 사용 |
+| 팬 + RGB LED MCU | I2C `/dev/i2c-2`, 주소 `0x0D` | 팬: 레지스터 `0x08` (0x00 끔, 0x01 100%, 0x02~0x09 = 20~90%), RGB: `0x00`~`0x07` |
 | LED1~4 | Pin 35 / 33 / 31 / 29 (wPi 23 / 22 / 20 / 19) | Active-high |
 
 I2C 스캔 결과 (`sudo i2cdetect -y 2`): `0x0d`, `0x3c`
@@ -149,4 +149,4 @@ make
 ## oled_fan (상태 표시 + 팬 제어 서비스)
 
 OLED에 시간/IP/CPU/메모리/온도를 표시하고 온도에 따라 팬을 제어하는 systemd 서비스입니다.
-HAT 팬 MCU(I2C `0x0D`)와 보드 `pwm-fan`을 모두 지원합니다. 자세한 내용은 [`OrangePi5/oled_fan`](OrangePi5/oled_fan/README.md) 참고.
+HAT 팬 MCU(I2C `0x0D`)와 보드 `pwm-fan`을 모두 지원합니다. 팬은 `fanctl`, HAT의 RGB LED는 `rgbctl` 명령으로 직접 제어할 수 있습니다. 자세한 내용은 [`OrangePi5/oled_fan`](OrangePi5/oled_fan/README.md) 참고.

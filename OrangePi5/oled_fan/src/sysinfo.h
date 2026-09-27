@@ -6,6 +6,6 @@
 double SYS_GetTemp(void);                  // hottest thermal zone, C
 int    SYS_GetCPUUsage(void);              // %, since previous call
 int    SYS_GetMemUsage(void);              // %, (total - available) / total
-int    SYS_GetIP(char *buf, size_t len);   // first external IPv4, 0 on success
+int    SYS_GetIfaceIP(const char *const *prefixes, char *buf, size_t len); // IPv4 of the first interface matching a prefix
 
 #endif

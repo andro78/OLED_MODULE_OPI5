@@ -4,9 +4,10 @@
 *                   and the board's kernel pwm-fan header, if present
 * | Info        :   MCU register 0x08 : 0x00 off, 0x01 full, 0x02-0x09 = 20-90%
 *                   /sys/class/hwmon/hwmonN (name = "pwmfan") / pwm1 : 0-255
-*                   Curve follows the board device tree:
-*                   rockchip,temp-trips = 50 55 60 65 70 C
-*                   cooling-levels      = 0 50 100 150 200 255
+*                   Curve: >= 40C -> full (255), < 35C -> half (128),
+*                   35-40C keeps the current speed (hysteresis)
+*                   /run/oled_fan/override : "auto" or a fixed duty 0-255 (fanctl)
+*                   /run/oled_fan/state    : "<temp> <pwm> <auto|manual>"
 ******************************************************************************/
 #include "fan.h"
 #include <stdio.h>
@@ -14,25 +15,28 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <time.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <linux/i2c-dev.h>
 
 #define FAN_I2C_DEV    "/dev/i2c-2"
 #define FAN_I2C_ADDR   0x0D
 #define FAN_REG        0x08
 
-#define HYSTERESIS_C   3.0   // drop a level only when this far below its trip
-#define KICK_PWM       255   // spin-up pulse when starting from a stop
-#define KICK_MS        500
-
-static const double trips[]  = {50, 55, 60, 65, 70};
-static const int    levels[] = {0, 50, 100, 150, 200, 255};
-#define NUM_TRIPS (int)(sizeof(trips) / sizeof(trips[0]))
+#define FULL_TEMP_C    40.0  // at or above: full speed
+#define HALF_TEMP_C    35.0  // below: half speed
+#define FULL_PWM       255
+#define HALF_PWM       128
+#define REFRESH_S      10    // re-send the speed; the MCU can lose it after a reset
+#define RUN_DIR        "/run/oled_fan"
+#define OVERRIDE_PATH  RUN_DIR "/override"
+#define STATE_PATH     RUN_DIR "/state"
 
 static char pwm_path[300];
 static int  i2c_fd    = -1;
-static int  cur_level = -1;
 static int  cur_pwm   = -1;
+static time_t last_set = 0;
 
 static int Fan_I2CInit(void)
 {
@@ -125,7 +129,8 @@ int Fan_SetPWM(int pwm)
     }
     if (!ok)
         return -1;
-    cur_pwm = pwm;
+    cur_pwm  = pwm;
+    last_set = time(NULL);
     return 0;
 }
 
@@ -134,23 +139,49 @@ int Fan_GetPWM(void)
     return cur_pwm < 0 ? 0 : cur_pwm;
 }
 
+// fixed duty requested with fanctl, or -1 for the automatic curve
+static int Fan_Override(void)
+{
+    FILE *f = fopen(OVERRIDE_PATH, "r");
+    int pwm = -1;
+
+    if (!f)
+        return -1;
+    if (fscanf(f, "%d", &pwm) != 1 || pwm < 0 || pwm > 255)
+        pwm = -1;
+    fclose(f);
+    return pwm;
+}
+
+static void Fan_WriteState(double temp_c, int manual)
+{
+    FILE *f;
+
+    mkdir(RUN_DIR, 0755);
+    if ((f = fopen(STATE_PATH ".tmp", "w")) == NULL)
+        return;
+    fprintf(f, "%.1f %d %s\n", temp_c, Fan_GetPWM(), manual ? "manual" : "auto");
+    if (fclose(f) == 0)
+        rename(STATE_PATH ".tmp", STATE_PATH);
+}
+
 int Fan_Update(double temp_c)
 {
-    int level = cur_level < 0 ? 0 : cur_level;
+    static int was_manual = 0;
+    int manual = Fan_Override();
+    // leaving manual mode starts the curve over instead of keeping the manual speed
+    int pwm = (cur_pwm < 0 || (was_manual && manual < 0)) ? HALF_PWM : cur_pwm;
 
-    while (level < NUM_TRIPS && temp_c >= trips[level])
-        level++;
-    while (level > 0 && temp_c < trips[level - 1] - HYSTERESIS_C)
-        level--;
+    was_manual = manual >= 0;
+    if (manual >= 0)
+        pwm = manual;
+    else if (temp_c >= FULL_TEMP_C)
+        pwm = FULL_PWM;
+    else if (temp_c < HALF_TEMP_C)
+        pwm = HALF_PWM;
 
-    if (level != cur_level) {
-        // small fans often won't start at a low duty, so give a short kick
-        if (Fan_GetPWM() == 0 && levels[level] > 0 && levels[level] < KICK_PWM) {
-            Fan_SetPWM(KICK_PWM);
-            usleep(KICK_MS * 1000);
-        }
-        if (Fan_SetPWM(levels[level]) == 0)
-            cur_level = level;
-    }
+    if (pwm != cur_pwm || time(NULL) - last_set >= REFRESH_S)
+        Fan_SetPWM(pwm);
+    Fan_WriteState(temp_c, manual >= 0);
     return Fan_GetPWM();
 }

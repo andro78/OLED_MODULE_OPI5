@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <arpa/inet.h>
 #include "DEV_Config.h"
 #include "GUI_Paint.h"
 #include "OLED_0in96.h"
@@ -13,6 +14,7 @@
 #include "sysinfo.h"
 
 #define UPDATE_MS 1000
+#define IP_SWITCH_S 3
 
 static volatile sig_atomic_t running = 1;
 
@@ -23,7 +25,7 @@ static void Handler(int signo)
 
 static void Draw(int pwm, double temp)
 {
-    char buf[32];
+    char buf[32], ip[INET_ADDRSTRLEN];
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
     int bar;
@@ -33,8 +35,18 @@ static void Draw(int pwm, double temp)
     strftime(buf, sizeof(buf), "%m/%d %H:%M:%S", tm);
     Paint_DrawString_EN(0, 0, buf, &Font12, WHITE, WHITE);
 
-    if (SYS_GetIP(buf, sizeof(buf)) != 0)
-        snprintf(buf, sizeof(buf), "No network");
+    // alternate Wi-Fi and Ethernet addresses every IP_SWITCH_S seconds
+    if ((now / IP_SWITCH_S) % 2 == 0) {
+        static const char *const wifi[] = {"wl", NULL};
+        if (SYS_GetIfaceIP(wifi, ip, sizeof(ip)) != 0)
+            snprintf(ip, sizeof(ip), "No link");
+        snprintf(buf, sizeof(buf), "W %s", ip);
+    } else {
+        static const char *const eth[] = {"eth", "en", NULL};
+        if (SYS_GetIfaceIP(eth, ip, sizeof(ip)) != 0)
+            snprintf(ip, sizeof(ip), "No link");
+        snprintf(buf, sizeof(buf), "E %s", ip);
+    }
     Paint_DrawString_EN(0, 13, buf, &Font12, WHITE, WHITE);
 
     snprintf(buf, sizeof(buf), "CPU%3d%% MEM%3d%%", SYS_GetCPUUsage(), SYS_GetMemUsage());
@@ -45,11 +57,12 @@ static void Draw(int pwm, double temp)
 
     snprintf(buf, sizeof(buf), "FAN%3d%%", pwm * 100 / 255);
     Paint_DrawString_EN(0, 52, buf, &Font12, WHITE, WHITE);
-    // fan duty bar
-    Paint_DrawRectangle(56, 53, 126, 63, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+    // fan duty bar, kept to the bottom rows: y 48-59 on this panel is burned in
+    // (an old program showed the IP there) and shows through any solid fill
+    Paint_DrawRectangle(56, 60, 126, 63, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
     bar = 56 + pwm * 70 / 255;
     if (bar > 57)
-        Paint_DrawRectangle(57, 54, bar, 63, WHITE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+        Paint_DrawRectangle(57, 61, bar, 63, WHITE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
 }
 
 int main(int argc, char *argv[])

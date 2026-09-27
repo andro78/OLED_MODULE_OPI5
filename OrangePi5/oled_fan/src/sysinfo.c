@@ -77,23 +77,21 @@ int SYS_GetMemUsage(void)
     return (int)(100 * (total - avail) / total);
 }
 
-int SYS_GetIP(char *buf, size_t len)
+int SYS_GetIfaceIP(const char *const *prefixes, char *buf, size_t len)
 {
-    static const char *skip[] = {"lo", "docker", "br-", "veth", "virbr"};
     struct ifaddrs *ifaddr, *ifa;
     int found = -1;
-    size_t i;
+    const char *const *p;
 
     if (getifaddrs(&ifaddr) == -1)
         return -1;
     for (ifa = ifaddr; ifa != NULL && found != 0; ifa = ifa->ifa_next) {
-        int skipped = 0;
         if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET)
             continue;
-        for (i = 0; i < sizeof(skip) / sizeof(skip[0]); i++)
-            if (strncmp(ifa->ifa_name, skip[i], strlen(skip[i])) == 0)
-                skipped = 1;
-        if (skipped)
+        for (p = prefixes; *p != NULL; p++)
+            if (strncmp(ifa->ifa_name, *p, strlen(*p)) == 0)
+                break;
+        if (*p == NULL)
             continue;
         if (getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
                         buf, len, NULL, 0, NI_NUMERICHOST) == 0)

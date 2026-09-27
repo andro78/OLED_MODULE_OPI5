@@ -5,6 +5,7 @@ After=multi-user.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/oled_fan
+ExecStartPost=-/usr/local/bin/rgbctl restore
 Restart=on-failure
 RestartSec=5
 

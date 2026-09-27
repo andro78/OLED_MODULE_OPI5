@@ -27,13 +27,16 @@ $(DIR_BIN):
 
 install: $(TARGET)
 	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
+	install -m 755 fanctl $(PREFIX)/bin/fanctl
+	install -m 755 rgbctl $(PREFIX)/bin/rgbctl
 	install -m 644 oled_fan.service /etc/systemd/system/oled_fan.service
 	systemctl daemon-reload
-	systemctl enable --now oled_fan.service
+	systemctl enable oled_fan.service
+	systemctl restart oled_fan.service
 
 uninstall:
 	-systemctl disable --now oled_fan.service
-	rm -f /etc/systemd/system/oled_fan.service $(PREFIX)/bin/$(TARGET)
+	rm -f /etc/systemd/system/oled_fan.service $(PREFIX)/bin/$(TARGET) $(PREFIX)/bin/fanctl $(PREFIX)/bin/rgbctl
 	systemctl daemon-reload
 
 clean:
