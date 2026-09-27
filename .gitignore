@@ -1,0 +1,5 @@
+# build outputs
+bin/
+*.o
+OrangePi5/c/main
+OrangePi5/oled_fan/oled_fan
